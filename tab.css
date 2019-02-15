@@ -1,0 +1,20 @@
+.tabs{
+    display: flex;
+    flex-wrap: wrap;
+}
+.tabs > input[type=radio][name=tab]{
+    display: none;
+}
+.tabs > input[type=radio][name=tab]:checked + label {
+    /*box-shadow: 0 0.15rem 0 #af0035;*/
+}
+.tabs > input[type=radio][name=tab]:checked + .tab-content,
+.tabs > input[type=radio][name=tab]:checked + label + .tab-content {
+    display: block;
+}
+.tabs .tab-content {
+    display: none;
+    order: 1;
+    width: 100%;
+    border-top: 1px solid #ccc;
+}
