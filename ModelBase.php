@@ -7,41 +7,67 @@ require_once 'LinksModelDirectory.php';
  */
 abstract class ModelBase
 {
+    const MENU_ITEM_TYPE_LANGUAGE = 'language';
+    private $acceptedLanguages = 'en';
+    protected $enabledLanguages = [];
+    protected $patternLanguageCode = '';
     public function __construct()
     {
+        //TODO Fix case when languages have different locale in wordpress
+        /*$siteLanguageLocale = get_bloginfo('language');
+        $this->defaultLanguageCode = strtok($siteLanguageLocale, '-');
+        $this->defaultLanguage = $this->getLanguage($this->defaultLanguageCode);
+        if (!$this->defaultLanguage) {
+            $this->defaultLanguageCode = 'en';
+            $this->defaultLanguage = $this->getLanguage($this->defaultLanguageCode);
+        }*/
+        $this->defaultLanguage = $this->getLanguage($this->defaultLanguageCode);
+        $langCodes = $this->getLanguages();
+        //TODO Review this logic because at this moment translation is not loaded
+        $textCustomLink = __('Custom Link');
+        $this->enabledLanguages []= [
+            'id' => $this->defaultLanguage->code,
+            'title' => $this->defaultLanguage->name,
+            'url' => "#{$this->defaultLanguage->code}",
+            'type_label' => $textCustomLink
+        ];
+        $langLocales = array_keys($this->getLanguages('locale'));
+        $commaSeparateLocales = implode(',', $langLocales);
+        $langFiles = glob( WP_LANG_DIR  . "/{{$commaSeparateLocales}}.mo", GLOB_BRACE);
+        if ($langFiles) {
+            foreach ($langFiles as $langFile) {
+                $langFile = basename($langFile, '.mo' );
+                $langCode = substr($langFile,0, 2);
+                $this->acceptedLanguages .= "|{$langCode}";
+                $lang = $langCodes[$langCode];
+                $this->enabledLanguages []= [
+                    'id' => $lang->code,
+                    'title' => $lang->name,
+                    'url' => "#{$lang->code}",
+                    'type_label' => $textCustomLink
+                ];
+            }
+        }
+        $this->patternLanguageCode = "/^#({$this->acceptedLanguages})/";
+        $isPermalinkStructure = get_option('permalink_structure');
+        if ($isPermalinkStructure) {
+            $this->linksModel = new LinksModelDirectory($this->defaultLanguageCode, $this->acceptedLanguages);
+        } else {
+            $this->linksModel = new LinksModelQuery($this->defaultLanguageCode, $this->acceptedLanguages);
+        }
         $this->initLanguage();
         $this->addLanguageHandlers();
     }
-    protected function initLanguage(){
-        //TODO Fix case when languages have different locale in wordpress
-        $defaultLanguageCode = strtok(get_bloginfo('language'), '_');
-        $defaultLanguage = $this->getLanguage($defaultLanguageCode);
-        if ($defaultLanguage) {
-            $this->defaultLanguageCode = $this->defaultLanguage->code;
-        } else {
-            $this->defaultLanguageCode = 'en';
-            $this->defaultLanguage = $this->getLanguage($this->defaultLanguageCode);
-        }
-        $this->getLinksModel();
-    }
+    protected function initLanguage(){}
+
     protected function addLanguageHandlers(){
-        //apply_filters_ref_array( 'the_posts', array( $this->posts, &$this ) );  Try to investigate this filter if is good for translation when retrieve the posts
         //Generic Handler for case when no other way to translate text
         add_filter('translate_text', [$this, 'getTextTranslation']);
         //[NavMenuItem Title] Make this optional because is override also the placeholder in Customizer
         add_filter('the_title', [$this, 'getTextTranslation']);
-        //[Terms]
-        add_filter('get_term', [$this, 'handleGetTerm']);
         //[WooCommerce]
         add_filter('woocommerce_gateway_title', [$this, 'getTextTranslation']);
         add_filter('woocommerce_gateway_description', [$this, 'getTextTranslation']);
-    }
-    function handleGetTerm($term)
-    {
-        if ($term && empty($term->name) == false) {
-            $term->name = $this->getTextTranslation($term->name);
-        }
-        return $term;
     }
     /**
      * @var ILinksModel Url Links Model that adjust handle links according to current language
@@ -52,14 +78,6 @@ abstract class ModelBase
      */
     public function getLinksModel(): ILinksModel
     {
-        if (!$this->linksModel){
-            $isPermalinkStructure = get_option('permalink_structure');
-            if ($isPermalinkStructure) {
-                $this->linksModel = new LinksModelDirectory($this->defaultLanguageCode, $this->getLanguagesCodesVisibleInUrl());
-            } else {
-                $this->linksModel = new LinksModelQuery($this->defaultLanguageCode, $this->getLanguagesCodesVisibleInUrl());
-            }
-        }
         return $this->linksModel;
     }
     /**
@@ -89,15 +107,6 @@ abstract class ModelBase
         }
         return $result;
     }
-    /**
-     * Changes the language code in url to current language
-     * @param string $url url to modify
-     * @return string modified url
-     */
-    public function setLanguageCodeToCurrent(string $url)
-    {
-        return $this->getLinksModel()->setLanguageCode($url, $this->currentLanguageCode);
-    }
 
     private $currentLanguageCode;
     /**
@@ -126,7 +135,7 @@ abstract class ModelBase
         return $this->defaultLanguage;
     }
 
-    private $defaultLanguageCode;
+    private $defaultLanguageCode = 'en';
     /**
      * @return string
      */
@@ -163,23 +172,7 @@ abstract class ModelBase
         }
         return $result;
     }
-    private $languageCodesVisible = '';
-    function getLanguagesCodesVisibleInUrl()
-    {
-        if (empty($this->languageCodesVisible)) {
-            $langLocales = array_keys($this->getLanguages('locale'));
-            $commaSeparateLocales = implode(',',$langLocales);
-            $langFiles = glob( WP_LANG_DIR  . "/{{$commaSeparateLocales}}.mo", GLOB_BRACE);
-            $this->languageCodesVisible = 'en';
-            if ($langFiles) {
-                foreach ($langFiles as $langFile) {
-                    $langFile = basename($langFile, '.mo' );
-                    $this->languageCodesVisible .= '|'.substr($langFile,0, 2);
-                }
-            }
-        }
-        return $this->languageCodesVisible;
-    }
+
     /**
      * Returns the language by Wordpress Locale
      * @param string $propertyValue value of the queried language property

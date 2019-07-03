@@ -18,8 +18,6 @@ class ModelAdmin extends ModelBase
     protected function addLanguageHandlers()
     {
         add_action('admin_menu', [$this, 'handleMenuAdmin']);
-        // Add endpoints custom URLs in Appearance > Menus > Pages.
-        add_action( 'admin_head-nav-menus.php', array( $this, 'handleAdminHeadNavMenus' ) );
         parent::addLanguageHandlers();
         //[Site Title]
         //add_filter('get_pages', [$this, 'handleGetPages'], 0);
@@ -37,10 +35,11 @@ class ModelAdmin extends ModelBase
         add_filter('woocommerce_order_item_meta_get_name', [$this, 'getTextTranslation']);
         add_filter('woocommerce_order_item_display_meta_value', [$this, 'handleOrderItemDisplayMetaValue'], 10, 2);
         //[Customizer: Menu Items Add]
-        add_filter('customize_nav_menu_available_items', [$this, 'handleCustomizeNavMenuItems'], 0);
         // Include custom items to customizer nav menu settings.
-        add_filter( 'customize_nav_menu_available_item_types', array( $this, 'register_customize_nav_menu_item_types' ) );
-        add_filter( 'customize_nav_menu_available_items', array( $this, 'register_customize_nav_menu_items' ), 10, 4 );
+        add_filter('customize_nav_menu_available_item_types', [$this, 'registerCustomizerNavMenuItemTypes']);
+        add_filter('customize_nav_menu_available_items', [$this, 'registerCustomizerNavMenuItems'], 10, 2);
+        // Add endpoints custom URLs in Appearance > Menus > Pages.
+        add_action( 'admin_head-nav-menus.php', array( $this, 'handleAdminHeadNavMenus' ) );
     }
     function handleGetPages($pages)
     {
@@ -51,14 +50,7 @@ class ModelAdmin extends ModelBase
         }
         return $pages;
     }
-    function handleCustomizeNavMenuItems($items)
-    {
-        foreach ($items as &$item) {
-            $item['title'] = $this->getTextTranslation($item['title']);
-        }
-        return $items;
-    }
-    function handleOrderItemDisplayMetaValue($display_value, WC_Meta_Data $meta)
+    function handleOrderItemDisplayMetaValue($display_value, $meta)
     {
         $metaData = $meta->get_data();
         if ($metaData && isset($metaData['key']) && $metaData['key'] == 'Items') {
@@ -96,9 +88,9 @@ class ModelAdmin extends ModelBase
     /** Adds the link to the languages Settings in the WordPress Admin Menu. */
     function handleMenuAdmin()
     {
+        $this->urlPageSettings = admin_url('options-general.php?page=' . self::MENU_SLUG);
         $pageTitle = __('Language Management', WpTranslate::TEXT_DOMAIN);
         $menuTitle = __('Languages', WpTranslate::TEXT_DOMAIN);
-        $this->urlPageSettings = admin_url('options-general.php?page=' . self::MENU_SLUG);
         add_options_page($pageTitle, $menuTitle, 'manage_options', self::MENU_SLUG,
             [$this, 'createPageSettings']);
     }
@@ -132,8 +124,7 @@ class ModelAdmin extends ModelBase
     {
         if ($this->verifyNonce()) {
             $textSettings = __('Settings');
-            $textLanguages = __('Languages');
-            $textGeneral = __('General', 'qtranslate');
+            $textLanguages = __('Languages', WpTranslate::TEXT_DOMAIN);
             $textSaveChanges = __('Save Changes', 'qtranslate');
             //[Tab: General]
             $textDetectBrowserLanguage = __('Detect Browser Language', 'qtranslate');
@@ -189,41 +180,40 @@ class ModelAdmin extends ModelBase
      * Adapted from http://www.johnmorrisonline.com/how-to-add-a-fully-functional-custom-meta-box-to-wordpress-navigation-menus/.
      */
     public function handleAdminHeadNavMenus() {
-        $textLanguages =  __('Languages');
+        $textLanguages =  __('Languages', WpTranslate::TEXT_DOMAIN);
         add_meta_box(self::ID_NAV_LINKS, $textLanguages, [$this, 'handleEndPointNavLink'],
             'nav-menus', 'side', 'low' );
     }
-    const MENU_ITEM_ENDPOINT_LANGUAGES = 'languages_endpoint';
-    const MENU_ITEM_TYPE_LANGUAGES = 'languages_nav';
     /** Output menu links. */
     public function handleEndPointNavLink() {
         // Get items from account menu.
-        $textAddToMenu = __( 'Add to menu', 'woocommerce' );
-        $textSelectAll = __('Select all', 'woocommerce' );
-        $urlSelectAll = admin_url('nav-menus.php?page-tab=all&selectall=1#posttype-woocommerce-endpoints' );
-        $urlSelectAll = esc_url($urlSelectAll);
         $i = -1;
         $content = '';
-        $endpoints = wc_get_account_menu_items();
-        foreach ( $endpoints as $key => $value ){
-            $index = esc_attr( $i );
-            $escValue =  esc_html( $value );
-            $urlToLanguage = esc_url( wc_get_account_endpoint_url( $key ) );
+        foreach ($this->enabledLanguages as $endpoint ){
+            $index = esc_attr($i);
+            $endpointTitle =  esc_html($endpoint['title']);
+            $endpointUrl = esc_url($endpoint['url']);
             $content .=  "<li>
             <label class='menu-item-title'>
                 <input type='checkbox' class='menu-item-checkbox' name='menu-item[{$index}][menu-item-object-id]' value='{$index}'>
-                {$escValue}
+                {$endpointTitle}
             </label>
             <input type='hidden' class='menu-item-type' name='menu-item[{$index}][menu-item-type]' value='custom'>
-            <input type='hidden' class='menu-item-title' name='menu-item[{$index}][menu-item-title]' value='{$escValue}'>
-            <input type='hidden' class='menu-item-url' name='menu-item[{$index}][menu-item-url]' value='{$urlToLanguage}'>
+            <input type='hidden' class='menu-item-title' name='menu-item[{$index}][menu-item-title]' value='{$endpointTitle}'>
+            <input type='hidden' class='menu-item-url' name='menu-item[{$index}][menu-item-url]' value='{$endpointUrl}'>
             <input type='hidden' class='menu-item-classes' name='menu-item[{$index}][menu-item-classes]'></li>";
             $i--;
         }
-        $postType = 'languages-enpoints';
+        $textAddToMenu = __( 'Add to menu');
+        $textSelectAll = __('Select all');
+        $postType = self::MENU_ITEM_TYPE_LANGUAGE;
+        $urlSelectAll = admin_url("nav-menus.php?page-tab=all&selectall=1#posttype-{$postType}" );
+        $urlSelectAll = esc_url($urlSelectAll);
         echo "<div id='posttype-{$postType}' class='posttypediv'>
         <div id='tabs-panel-{$postType}' class='tabs-panel tabs-panel-active'>
-            <ul id='{$postType}-checklist' class='categorychecklist form-no-clear'>{$content}</ul>
+            <ul id='{$postType}-checklist' class='categorychecklist form-no-clear'>
+                {$content}
+            </ul>
         </div>
         <p class='button-controls'>
             <span class='list-controls'>
@@ -236,44 +226,35 @@ class ModelAdmin extends ModelBase
                 </button>
                 <span class='spinner'></span>
             </span>
-        </p>
-        </div>";
+        </p></div>";
     }
     /**
      * Register customize new nav menu item types. This will register Languages endpoints as a nav menu item type.
-     * @param  array $item_types Menu item types.
+     * @param  array $itemTypes Menu item types.
      * @return array
      */
-    public function register_customize_nav_menu_item_types( $item_types ) {
-        $item_types[] = [
-            'title'      => __( 'Languages Endpoints'),
-            'type_label' => __( 'Language Endpoint'),
-            'type'       => self::MENU_ITEM_TYPE_LANGUAGES,
-            'object'     => self::MENU_ITEM_ENDPOINT_LANGUAGES,
+    public function registerCustomizerNavMenuItemTypes($itemTypes) {
+        $itemTypes[] = [
+            'title'      => __('Languages', WpTranslate::TEXT_DOMAIN),
+            'type_label' => __('Site Language'),
+            'type'       => self::MENU_ITEM_TYPE_LANGUAGE,
+            'object'     => self::MENU_ITEM_TYPE_LANGUAGE,
         ];
-        return $item_types;
+        return $itemTypes;
     }
 
     /**
-     * Register account endpoints to customize nav menu items.
+     * Register Language endpoints to customize nav menu items.
      * @param  array   $items  List of nav menu items.
      * @param  string  $type   Nav menu type.
-     * @param  string  $object Nav menu object.
-     * @param  integer $page   Page number.
      * @return array
      */
-    public function register_customize_nav_menu_items($items = [], $type = '', $object = '', $page = 0 ) {
-        // $page <= 0 Don't allow pagination since all items are loaded at once.
-        if ( self::MENU_ITEM_ENDPOINT_LANGUAGES == $object && $page <= 0 ) {
-            $textCustomLink = __( 'Custom Link');
-            $endpoints = wc_get_account_menu_items(); // ['id'=>'en', 'title'=>'English', 'type_label' => $textCustomLink]
-            foreach ( $endpoints as $endpoint) {
-                $items[] = [
-                    'id'         => $endpoint->id,
-                    'title'      => $endpoint->title,
-                    'url'        => $endpoint->url,
-                    'type_label' => $textCustomLink,
-                ];
+    public function registerCustomizerNavMenuItems($items = [], $type = '') {
+        if (empty($items) && $type == self::MENU_ITEM_TYPE_LANGUAGE) {
+            $items = $this->enabledLanguages;
+        } else {
+            foreach ($items as &$item) {
+                $item['title'] = $this->getTextTranslation($item['title']);
             }
         }
         return $items;

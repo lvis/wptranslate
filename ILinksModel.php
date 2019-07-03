@@ -23,4 +23,10 @@ interface ILinksModel
      * Get Url that has language parameter with value in it
      */
     public function getUrlFromRequest();
+
+    /**
+     * Get Url that has specified language value in it
+     * @param string $languageCode value that must be replaced in current url
+     */
+    public function getUrlForLanguage(string $languageCode);
 }

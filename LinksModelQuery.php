@@ -79,6 +79,9 @@ class LinksModelQuery implements ILinksModel
             return $_SERVER['REQUEST_URI'];
         }
     }
+    function getUrlForLanguage(string $languageCode){
+        return $this->setLanguageCode($this->getUrlFromRequest(), $languageCode);
+    }
     /**
      * Adds our Domains or SubDomains to allowed hosts for safe redirection
      * @param array $hosts Allowed hosts
