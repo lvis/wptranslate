@@ -170,6 +170,7 @@ abstract class ModelBase
                 $result = $this->languagesList[$property];
             }
         }
+
         return $result;
     }
 

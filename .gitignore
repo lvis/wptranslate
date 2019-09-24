@@ -1,3 +1,5 @@
-# IntelliJ
 .idea
 .DS_Store
+wptranslate.iml
+wptranslate.ipr
+wptranslate.iws

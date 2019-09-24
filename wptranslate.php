@@ -38,34 +38,35 @@ final class WpTranslate
         $isRequestCron = defined('DOING_CRON');
         $isRequestCli = (defined('WP_CLI') && WP_CLI);
         if ($isRequestCron == false && $isRequestCli == false){
-            $isRequestLogin = in_array($GLOBALS['pagenow'], ['wp-login.php', 'wp-register.php']);
-            if ($isRequestLogin == false){
-                $this->isRequestAction = isset($_REQUEST['action']);
-                $notExcludedAdminAction = true;
-                if ($this->isRequestAction){
-                    $adminActions = ['upload-attachment', 'customize_save', 'logout', 'customer_logout'];
-                    $notExcludedAdminAction = (in_array($_REQUEST['action'], $adminActions) == false);
-                }
-                /*$notAdminPage = strpos($_SERVER['REQUEST_URI'], 'admin') !== 0;
-                if ($notExcludedAdminAction && $notAdminPage){*/
-                if ($notExcludedAdminAction){
-                    add_action('plugins_loaded', [$this, 'handleInit'], 1);
-                }
+            $this->isRequestAction = isset($_REQUEST['action']);
+            $notExcludedAdminAction = true;
+            if ($this->isRequestAction){
+                $adminActions = ['upload-attachment', 'customize_save', 'logout', 'customer_logout'];
+                $notExcludedAdminAction = (in_array($_REQUEST['action'], $adminActions) == false);
+            }
+            /*$notAdminPage = strpos($_SERVER['REQUEST_URI'], 'admin') !== 0;
+            if ($notExcludedAdminAction && $notAdminPage){*/
+            if ($notExcludedAdminAction){
+                add_action('plugins_loaded', [$this, 'handlePluginLoaded'], 1);
             }
         }
     }
-    function handleInit()
+    function isPageLogin(){
+        //in_array( $_SERVER['PHP_SELF'], array( '/wp-login.php', '/wp-register.php' )
+        return stripos(wp_login_url(), $_SERVER['SCRIPT_NAME']) !== false || in_array( $_SERVER['PHP_SELF'], array( '/wp-login.php', '/wp-register.php' ));
+    }
+    function handlePluginLoaded()
     {
-        remove_action('plugins_loaded', [$this, 'handleInit']);
+        remove_action('plugins_loaded', [$this, 'handlePluginLoaded']);
         // Some plugins use transient for handle data and
         // if plugin was activated after data was created translation not applied,
         // plugin must clear all transient on plugin activation.
         // Problem observed in  wc_attribute_taxonomies solved after modify and save an attribute
         $isRequestCustomize = isset($_REQUEST['wp_customize']);
         //$isRequestCustomizePreview = is_customize_preview();
-        if ($isRequestCustomize || (is_admin() && $this->isRequestAction == false)) {
+        if ($isRequestCustomize || (is_admin() && $this->isRequestAction == false) || $this->isPageLogin()) {
             $this->plugin = new ModelAdmin();
-        } else {
+        } else if (is_admin() == false) {
             $this->plugin = new ModelFrontend();
         }
         $pluginRelativePath = basename(dirname( __FILE__ ) ) . '/languages/';
