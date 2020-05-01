@@ -25,11 +25,6 @@ class LanguageListTable extends WP_List_Table
         */
         foreach ($this->languageList as $code => $language) {
             $languageAction = '';
-            /*if (){
-                $languageAction = "<a class='edit' href='{$this->urlSettingsPage}&disable={$code}#languages'>{$textDisable}</a>";
-            } else {
-                $languageAction = "<a class='edit' href='{$this->urlSettingsPage}&enable={$code}#languages'>{$textEnable}</a>";
-            }*/
             $data[] = [
                 'name' => "{$language->getFlagHtml()} {$language->name}",
                 'code' => "[:{$language->code}]",

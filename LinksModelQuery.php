@@ -17,9 +17,9 @@ class LinksModelQuery implements ILinksModel
      */
     protected $hosts;
 
-    protected $defaultLanguage = 'en';
+    protected $defaultLanguage = WpTranslate::LANGUAGE_DEFAULT_CODE;
 
-    protected $acceptedLanguages = 'en';
+    protected $acceptedLanguages = WpTranslate::LANGUAGE_DEFAULT_CODE;
 
     private $patternGetLanguageCode = '';
     /**

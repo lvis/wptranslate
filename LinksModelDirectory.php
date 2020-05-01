@@ -72,7 +72,7 @@ class LinksModelDirectory extends LinksModelQuery
         $urlPath = parse_url($url, PHP_URL_PATH);
         $languageCode = '';
         if (empty($this->acceptedLanguages) == false &&
-            preg_match("#{$urlHome}({$this->acceptedLanguages})(\/|$)#", trailingslashit($urlPath), $matches)) {
+            preg_match("#{$urlHome}({$this->acceptedLanguages})(/|$)#", trailingslashit($urlPath), $matches)) {
             $languageCode = $matches[1];
         }
         return $languageCode;

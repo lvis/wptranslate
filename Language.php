@@ -114,7 +114,7 @@ class Language
         if (empty($this->facebook) == false && empty($this->locale)) {
             $this->locale = $this->facebook;
         }
-        if (isset($this->w3c) == false) {
+        if (empty($this->w3c) == false) {
             $this->w3c = str_replace('_', '-', $this->locale);
         }
         $this->setFlag();
